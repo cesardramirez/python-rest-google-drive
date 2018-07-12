@@ -6,7 +6,7 @@ from oauth2client import file, client, tools
 
 class Auth:
     # Configurar el API Drive v3.
-    SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly'
+    SCOPES = 'https://www.googleapis.com/auth/drive'
     CREDENTIALS_FILE = 'credentials.json'  # Al ejecutar el programa, modifica el archivo credentials.json.
     CLIENT_SECRET_FILE = 'client_secret.json'
     APPLICATION_NAME = 'API Drive Python Files'
