@@ -6,3 +6,9 @@ virtualenv -p /usr/bin/python3.4 venv
 source venv/bin/activate
 pip install --upgrade pip
 pip install --upgrade setuptools
+
+# Instalar Google Client Library
+pip install --upgrade google-api-python-client oauth2client
+
+# Correr quickstart
+python quickstart.py
