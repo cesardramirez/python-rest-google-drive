@@ -12,9 +12,10 @@ class Operations:
 
         Imprime los nombres y los ids de los últimos 10 archivos que el usuario ha tenido acceso.
         """
-        authentication = Auth()
+        drive_service = Auth().get_service()
+
         # Llamar el API Drive v3.
-        results = authentication.get_service().files().list(pageSize=size, fields="nextPageToken, files(id, name)").execute()
+        results = drive_service.files().list(pageSize=size, fields="nextPageToken, files(id, name)").execute()
         items = results.get('files', [])
 
         if not items:
@@ -25,20 +26,20 @@ class Operations:
                 print('{0} ({1})'.format(item['name'], item['id']))
 
     def upload_file(self, filename, filepath, mimetype):
-        authentication = Auth()
+        drive_service = Auth().get_service()
 
         file_metadata = {'name': filename}
         media = MediaFileUpload(filepath, mimetype=mimetype)
-        file = authentication.get_service().files().create(body=file_metadata,
+        file = drive_service.files().create(body=file_metadata,
                                                            media_body=media,
                                                            fields='id').execute()
         print('Archivo cargado! ')
         print('ID Archivo: %s' % file.get('id'))
 
     def download_file(self, file_id, filepath):
-        authentication = Auth()
+        drive_service = Auth().get_service()
 
-        request = authentication.get_service().files().get_media(fileId=file_id)
+        request = drive_service.files().get_media(fileId=file_id)
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False
@@ -49,5 +50,17 @@ class Operations:
             fh.seek(0)
             f.write(fh.read())
             print('Archivo %s descargado!' % file_id)
+
+    def create_folder(self, foldername):
+        drive_service = Auth().get_service()
+
+        file_metadata = {
+            'name': foldername,
+            'mimeType': 'application/vnd.google-apps.folder'
+        }
+        file = drive_service.files().create(body=file_metadata,
+                                            fields='id').execute()
+        print('Carpeta Creada!')
+        print('ID Carpeta: %s' % file.get('id'))
 
 
