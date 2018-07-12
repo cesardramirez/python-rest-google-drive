@@ -1,3 +1,3 @@
-import quickstart as qs
+from quickstart import Operations
 
-qs.main()
+op = Operations().list_files()
