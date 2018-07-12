@@ -1,3 +1,3 @@
-import platform
+import quickstart as qs
 
-print(platform.python_version())
+qs.main()
