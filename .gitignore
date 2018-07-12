@@ -4,3 +4,6 @@
 
 # Pycharm
 venv/
+
+# VSCode
+.vscode/
