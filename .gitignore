@@ -1,0 +1,6 @@
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Pycharm
+venv/
