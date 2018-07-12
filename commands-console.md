@@ -10,5 +10,5 @@ pip install --upgrade setuptools
 # Instalar Google Client Library
 pip install --upgrade google-api-python-client oauth2client
 
-# Correr quickstart
-python quickstart.py
+# Correr Principal
+python main.py
