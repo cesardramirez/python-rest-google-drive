@@ -1,6 +1,7 @@
 # coding=utf-8
-from googleapiclient.http import MediaFileUpload
+import io
 
+from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from auth import Auth
 
 
@@ -33,4 +34,20 @@ class Operations:
                                                            fields='id').execute()
         print('Archivo cargado! ')
         print('ID Archivo: %s' % file.get('id'))
+
+    def download_file(self, file_id, filepath):
+        authentication = Auth()
+
+        request = authentication.get_service().files().get_media(fileId=file_id)
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+            print("Download %d%%." % int(status.progress() * 100))
+        with io.open(filepath, 'wb') as f:
+            fh.seek(0)
+            f.write(fh.read())
+            print('Archivo %s descargado!' % file_id)
+
 
