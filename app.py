@@ -152,7 +152,7 @@ def add_uri_file(file):
     for field in file:
         if field == 'id':
             new_json[field] = file[field]  # Deja el campo 'id' del file.
-            new_json['uri'] = flask.url_for('get_file', file_id=file['id'], _external=True)
+            new_json['uri'] = flask.url_for('get_file', param=file['id'], _external=True)
         else:
             new_json[field] = file[field]
 
@@ -179,7 +179,7 @@ def get_file(param):
 
     flask.session['credentials'] = credentials_to_dict(credentials)
 
-    return flask.jsonify({'files': file})
+    return flask.jsonify({'files': [add_uri_file(file)]})
 
 
 @app.errorhandler(Exception)
