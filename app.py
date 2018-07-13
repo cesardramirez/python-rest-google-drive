@@ -130,6 +130,7 @@ Métodos HTTP Finales
 
 @app.route('/api/v1/files')
 def get_files():
+    flask.session['original_method'] = 'get_files'
     if 'credentials' not in flask.session:
         return flask.redirect('authorize')
 
@@ -185,8 +186,10 @@ def oauth2callback():
     # Nota: En una app de producción, es probable que desee guardar estas credenciales en una base de datos persistente.
     credentials = flow.credentials
     flask.session['credentials'] = credentials_to_dict(credentials)
+    # Vuelve al método original en el que fue llamado.
+    original_method = flask.session.get('original_method')
 
-    return flask.redirect(flask.url_for('get_files'))
+    return flask.redirect(flask.url_for(original_method))
 
 
 @app.route('/revoke')
