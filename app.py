@@ -5,6 +5,7 @@ import flask
 import requests
 from googleapiclient import errors
 from werkzeug.exceptions import HTTPException
+from werkzeug.utils import secure_filename
 
 import google.oauth2.credentials as creden
 import google_auth_oauthlib.flow as fw
@@ -125,7 +126,7 @@ Métodos HTTP Finales
 """
 
 
-@app.route('/api/v1/files')
+@app.route('/api/v1/files', methods=['GET'])
 def get_files():
     flask.session['original_method'] = 'get_files'
     flask.session['params'] = None
@@ -189,6 +190,34 @@ def handle_error(e):
         code = e.code
 
     return flask.jsonify(error=str(e)), code
+
+
+UPLOAD_FOLDER = 'files/'
+ALLOWED_EXTENSIONS = tuple(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/api/v1/files', methods=['POST'])
+def upload_file():
+    if flask.request.method == 'POST':
+        if 'file' not in flask.request.files:
+            flask.abort(400)
+        file = flask.request.files['file']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            return flask.redirect(flask.url_for('uploaded_file', filename=filename))
+        else:
+            return flask.make_response(flask.jsonify({'error': 'File Extension not Allowed'}), 400)
+
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return flask.send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 @app.route('/authorize')
