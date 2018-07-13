@@ -3,6 +3,8 @@
 import os
 import flask
 import requests
+from googleapiclient import errors
+from werkzeug.exceptions import HTTPException
 
 import google.oauth2.credentials as creden
 import google_auth_oauthlib.flow as fw
@@ -89,7 +91,7 @@ def make_public_file(file):
     new_file = {}
     for field in file:
         if field == 'id':
-            new_file['uri'] = flask.url_for('get_file', file_id=file['id'], _external=True)
+            new_file['uri'] = flask.url_for('get_file_example', file_id=file['id'], _external=True)
         else:
             new_file[field] = file[field]
 
@@ -97,16 +99,11 @@ def make_public_file(file):
 
 
 @app.route('/api/v1/filesExample/<string:file_id>', methods=['GET'])
-def get_file(file_id):
+def get_file_example(file_id):
     file = [file for file in files_example if file['id'] == file_id]
     if len(file) == 0:
         flask.abort(404)
     return flask.jsonify({'file': file[0]})
-
-
-@app.errorhandler(404)
-def not_found(error):
-    return flask.make_response(flask.jsonify({'error': 'Not found'}), 404)
 
 
 @app.route('/api/v1/filesExample', methods=['POST'])
@@ -131,6 +128,7 @@ Métodos HTTP Finales
 @app.route('/api/v1/files')
 def get_files():
     flask.session['original_method'] = 'get_files'
+    flask.session['params'] = None
     if 'credentials' not in flask.session:
         return flask.redirect('authorize')
 
@@ -146,7 +144,51 @@ def get_files():
     # Nota: En una app de producción, es probable que desee guardar estas credenciales en una base de datos persistente.
     flask.session['credentials'] = credentials_to_dict(credentials)
 
-    return flask.jsonify(**files)  # Pasa una lista de diccionarios a json.
+    return flask.jsonify({'files': [add_uri_file(file) for file in files.get('files')]})
+
+
+def add_uri_file(file):
+    new_json = {}
+    for field in file:
+        if field == 'id':
+            new_json[field] = file[field]  # Deja el campo 'id' del file.
+            new_json['uri'] = flask.url_for('get_file', file_id=file['id'], _external=True)
+        else:
+            new_json[field] = file[field]
+
+    return new_json
+
+
+@app.route('/api/v1/files/<string:param>', methods=['GET'])
+def get_file(param):
+    flask.session['original_method'] = 'get_file'
+    flask.session['param'] = param
+    file_id = param
+    if 'credentials' not in flask.session:
+        return flask.redirect('authorize')
+
+    credentials = creden.Credentials(**flask.session['credentials'])
+    drive = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
+
+    file = None
+    try:
+        file = drive.files().get(fileId=file_id, fields='id,mimeType,name,parents,webViewLink').execute()
+    except errors.HttpError as error:
+        print('ERROR: %s' % error)
+        flask.abort(404)
+
+    flask.session['credentials'] = credentials_to_dict(credentials)
+
+    return flask.jsonify({'files': file})
+
+
+@app.errorhandler(Exception)
+def handle_error(e):
+    code = 500  # Internal Server Error
+    if isinstance(e, HTTPException):
+        code = e.code
+
+    return flask.jsonify(error=str(e)), code
 
 
 @app.route('/authorize')
@@ -186,10 +228,15 @@ def oauth2callback():
     # Nota: En una app de producción, es probable que desee guardar estas credenciales en una base de datos persistente.
     credentials = flow.credentials
     flask.session['credentials'] = credentials_to_dict(credentials)
-    # Vuelve al método original en el que fue llamado.
-    original_method = flask.session.get('original_method')
 
-    return flask.redirect(flask.url_for(original_method))
+    # Vuelve al método original en el que fue llamado.
+    param = flask.session.get('param')
+    original_method = flask.session.get('original_method')
+    if param is None:
+        return flask.redirect(flask.url_for(original_method))
+    else:
+        return flask.redirect(flask.url_for(original_method, param=param))
+
 
 
 @app.route('/revoke')
