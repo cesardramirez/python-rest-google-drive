@@ -1,60 +1,48 @@
 # -*- coding: utf-8 -*-
+##
+# App REST Python - API Google Drive v3
+#
+# @author  Cesar Ramírez <cesardavid89@gmail.com>
+# @date    2018-07-13
+# Dependencias:
+#   - google-auth
+#   - google-auth-oauthlib
+#   - google-auth-httplib2
+#   - google-api-python-client
+#   - oauth2client
+#   - flask
+#   - requests
 
-import os
 import flask
+import os
 import requests
+import google.oauth2.credentials as creden
+import google_auth_oauthlib.flow as fw
+
 from googleapiclient import errors
-from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
-import google.oauth2.credentials as creden
-import google_auth_oauthlib.flow as fw
-from googleapiclient.discovery import build
-
-# Esta variable especifica el nombre de un archivo que contiene la información de OAuth 2.0
-# para esta apliación, incluyendo sus client_id y client_secret.
+# Esta constante especifica el nombre del archivo que contiene la información de OAuth 2.0
+# para esta app, incluyendo su client_id y client_secret.
 CLIENT_SECRETS_FILE = "client_secret.json"
 
-# El scope de acceso de OAuth 2.0 permite un total acceso lectura/escritura de la cuenta del usuario
+# El scope de OAuth 2.0 permite un total acceso (lectura/escritura) de la cuenta del usuario
 # autenticado y requiere solicitudes para usar una conexión SSL.
 SCOPES = ['https://www.googleapis.com/auth/drive']
 API_SERVICE_NAME = 'drive'
 API_VERSION = 'v3'
 
 app = flask.Flask(__name__)
-# Nota: Se incluye una clave secreta en el ejemplo para que funcione.
-# Si usa este código en su aplicación, reemplace esto con una clave secreta verdadera.
+# Se genera una clave secreta de manera aleatoria.
 app.secret_key = os.urandom(24)
-#app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 
-files_example = [
-    {
-        "id": "17JPnSpp1GO6ayH0hksczT06ZjK5O0GsA",
-        "name": "Example.png",
-        "mimeType": "image/png"
-    },
-    {
-        "id": "10pc3yVHcVQrIaaGHdtwRFAkqhwNkjYPk",
-        "name": "Google",
-        "mimeType": "application/vnd.google-apps.folder"
-    },
-    {
-        "id": "1RcPaWJvF_Y0LewqTz7vmRI9a0Sj-O2Xh",
-        "name": "unnamed.jpg",
-        "mimeType": "image/jpeg"
-    },
-    {
-        "id": "1QlESUIuL89vOcLb05a6Eyaxk3rZr71DF",
-        "name": "Example.pdf",
-        "mimeType": "application/pdf"
-    },
-    {
-        "id": "1VVO8FclAkJxQi9SB0w_rtJwpBQAa8FkG",
-        "name": "Example.docx",
-        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    }
-]
+# Se definen las constantes para el almacenamiento de archivos, ubicación y extensiones permitidas.
+UPLOAD_FOLDER = 'files/'
+ALLOWED_EXTENSIONS = tuple(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
 @app.route('/')
@@ -64,67 +52,24 @@ def index():
 
 @app.route('/test')
 def test_api_request():
+    flask.session['original_method'] = 'test_api_request'
     if 'credentials' not in flask.session:
         return flask.redirect('authorize')
 
-    # Carga credenciales de la sesión
+    # Carga credenciales de la sesión.
     credentials = creden.Credentials(**flask.session['credentials'])
     drive = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
-    # Es como si realizara una peticion get con la url 'https://www.googleapis.com/drive/v3/files'
+    # El flujo es igual a como si se realizara una petición GET con la url 'https://www.googleapis.com/drive/v3/files'.
     # Crea una lista de los archivos de Google Drive del usuario autenticado.
     files = drive.files().list().execute()
-    #files = drive.files().list(pageSize=50, fields='files(id,mimeType,name,parents,webViewLink)').execute()
 
     # Guarda las credenciales nuevamente en sesión en caso de que el token de acceso se haya actualizado.
-    # Nota: En una app de producción, es probable que desee guardar estas credenciales en una base de datos persistente.
+    # Importante! En un ambiente de producción, es probable que desee guardar estas credenciales
+    # en una base de datos persistente.
     flask.session['credentials'] = credentials_to_dict(credentials)
 
     return flask.jsonify(**files)  # Pasa una lista de diccionarios a json.
-
-
-@app.route('/api/v1/filesExample', methods=['GET'])
-def get_files_example():
-    #return flask.jsonify({'files': files_example})
-    return flask.jsonify({'files': [make_public_file(file) for file in files_example]})
-
-
-def make_public_file(file):
-    new_file = {}
-    for field in file:
-        if field == 'id':
-            new_file['uri'] = flask.url_for('get_file_example', file_id=file['id'], _external=True)
-        else:
-            new_file[field] = file[field]
-
-    return new_file
-
-
-@app.route('/api/v1/filesExample/<string:file_id>', methods=['GET'])
-def get_file_example(file_id):
-    file = [file for file in files_example if file['id'] == file_id]
-    if len(file) == 0:
-        flask.abort(404)
-    return flask.jsonify({'file': file[0]})
-
-
-@app.route('/api/v1/filesExample', methods=['POST'])
-def create_file():
-    if not flask.request.json or not 'filename' or not 'mimetype' in flask.request.json:
-        flask.abort(404)
-
-    file = {
-        'id': 'code_file_' + str(1),
-        'name': flask.request.json['filename'],
-        'mimetype': flask.request.json.get('mimetype')
-    }
-    files_example.append(file)
-
-    return flask.jsonify({'file': file}), 201
-
-"""
-Métodos HTTP Finales
-"""
 
 
 @app.route('/api/v1/files', methods=['GET'])
@@ -134,22 +79,19 @@ def get_files():
     if 'credentials' not in flask.session:
         return flask.redirect('authorize')
 
-    # Carga credenciales de la sesión
     credentials = creden.Credentials(**flask.session['credentials'])
     drive = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
-    # Realiza una petición get con la url 'https://www.googleapis.com/drive/v3/files'
     # Crea una lista de los archivos de Google Drive del usuario autenticado y con campos específicos.
     files = drive.files().list(fields='files(id,mimeType,name,parents,webViewLink)').execute()
 
-    # Guarda las credenciales nuevamente en sesión en caso de que el token de acceso se haya actualizado.
-    # Nota: En una app de producción, es probable que desee guardar estas credenciales en una base de datos persistente.
     flask.session['credentials'] = credentials_to_dict(credentials)
 
     return flask.jsonify({'files': [add_uri_file(file) for file in files.get('files')]})
 
 
 def add_uri_file(file):
+    """ Método que agrega el campo URI a un objeto json (file). """
     new_json = {}
     for field in file:
         if field == 'id':
@@ -186,6 +128,7 @@ def get_file(param):
 
 @app.errorhandler(Exception)
 def handle_error(e):
+    """ Método que es llamado al ejecutar flask.abort(code_http). """
     code = 500  # Internal Server Error
     if isinstance(e, HTTPException):
         code = e.code
@@ -193,12 +136,8 @@ def handle_error(e):
     return flask.jsonify(error=str(e)), code
 
 
-UPLOAD_FOLDER = 'files/'
-ALLOWED_EXTENSIONS = tuple(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-
 def allowed_file(filename):
+    """ Método que retorna si cumple o no con la extensión de archivos permitida. """
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
@@ -215,10 +154,11 @@ def upload_file():
         file_path = UPLOAD_FOLDER + file_name
 
         if file and allowed_file(file.filename):
+            # Almacena el archivo en el servidor local.
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
-            # Almacenar en google drive en una carpeta específica.
+            # Almacenar el archivo en una carpeta determinada en Google Drive.
             flask.session['original_method'] = 'upload_file'
             flask.session['param'] = None
             if 'credentials' not in flask.session:
@@ -226,6 +166,7 @@ def upload_file():
 
             credentials = creden.Credentials(**flask.session['credentials'])
             drive = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
+
             file_metadata = {
                 'name': file_name,
                 'parents': [folder_id]
@@ -250,12 +191,13 @@ def upload_file():
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
+    """ Método que define la ubicación en donde se almacenará el archivo en el servidor local. """
     return flask.send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 @app.route('/authorize')
 def authorize():
-    # Crea una instancia de flujo (flow) para administrar los pasos de la autorización de OAuth 2.0
+    # Crea una instancia de flujo (flow) para administrar los pasos de la autorización de OAuth 2.0.
     flow = fw.Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES)
     flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
 
@@ -263,11 +205,11 @@ def authorize():
         # Habilita el acceso offline para que pueda actualizar un token de acceso sin pedir permiso al usuario.
         # Recomendado para web server apps.
         access_type='offline',
-        # Habilita la autorización incremental. Recomenddado como una buena práctica.
+        # Habilita la autorización incremental. Recomendado como una buena práctica.
         include_granted_scopes='true'
     )
 
-    # Almanacena el estado para que la devolución pueda verificar la respuesta el servidor de autenticación.
+    # Almanacena el estado para que en la devolución pueda verificar la respuesta el servidor de autenticación.
     flask.session['state'] = state
 
     return flask.redirect(authorization_url)
@@ -275,8 +217,8 @@ def authorize():
 
 @app.route('/oauth2callback')
 def oauth2callback():
-    # Especifica el estado cuando se está creando el flujo en el callback
-    # para que pueda verificarse en la respuesta del servidor de autorización.
+    # Especifica el estado (state) cuando se está creando el flujo en el callback y que así
+    # pueda verificarlo en la respuesta del servidor de autorización.
     state = flask.session['state']
 
     flow = fw.Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
@@ -287,11 +229,12 @@ def oauth2callback():
     flow.fetch_token(authorization_response=authorization_response)
 
     # Almacena las credenciales en la sesión.
-    # Nota: En una app de producción, es probable que desee guardar estas credenciales en una base de datos persistente.
+    # Importante! En un ambiente de producción es probable que desee guardar estas credenciales
+    # en una base de datos persistente.
     credentials = flow.credentials
     flask.session['credentials'] = credentials_to_dict(credentials)
 
-    # Vuelve al método original en el que fue llamado.
+    # Vuelve al método de donde fue llamado inicialmente (original).
     param = flask.session.get('param')
     original_method = flask.session.get('original_method')
     if param is None:
@@ -303,14 +246,14 @@ def oauth2callback():
 @app.route('/revoke')
 def revoke():
     if 'credentials' not in flask.session:
-        return 'Usted necesita <a href="/authorize">autorizar</a> ' \
+        return 'Necesita <a href="/authorize">autorizar</a> ' \
                'antes de probar el código para revocar las credenciales.'
 
     credentials = creden.Credentials(**flask.session['credentials'])
 
     revoke = requests.post('https://accounts.google.com/o/oauth2/revoke',
                            params={'token': credentials.token},
-                           headers = {'content-type': 'application/x-www-form-urlencoded'})
+                           headers={'content-type': 'application/x-www-form-urlencoded'})
 
     status_code = getattr(revoke, 'status_code')
     if status_code == 200:
@@ -340,29 +283,29 @@ def credentials_to_dict(credentials):
 
 def print_index_table():
     return '<table>' \
-           '<tr><td><a href="/test">Prueba de una API request</a></td>' \
-           '<td>Envíe una solicitud al API y vea una respuesta JSON formateada. ' \
-           'Revise el flujo de la autorización si no hay credenciales almacenadas para el usuario.' \
+           '<tr><td><a href="/test">Probar el API Request</a></td>' \
+           '<td>Envía una solicitud al API de Google Drive y genera una respuesta en formato JSON. ' \
+           'Revisa el flujo de autorización si no hay credenciales almacenadas para el usuario.' \
            '</td></tr>' \
-           '<tr><td><a href="/authorize">Pruebe el flujo de autenticación directamente</a></td>' \
-           '<td>Vaya directamente al flujo de autorización. ' \
+           '<tr><td><a href="/authorize">Probar el flujo de autenticación</a></td>' \
+           '<td>Va directamente al flujo de autorización. ' \
            'Si hay credenciales almacenadas, es posible que todavía no se le solicite ' \
            'volver a autorizar la aplicación.</td></tr>' \
            '<tr><td><a href="/revoke">Revocar credenciales actuales</a></td>' \
-           '<td>Revoque el token de acceso asociado con la sesión del usuario actual. ' \
+           '<td>Revoca el token de acceso asociado con la sesión del usuario actual. ' \
            'Después de revocar las credenciales, si va a la página de prueba, debería ' \
            'ver un error de <code>invalid_grant</code>.</td></tr>' \
            '<tr><td><a href="/clear">Borrar credenciales de la sesión de Flask</a></td>' \
            '<td>Borra el token de acceso almacenado actualmente de la sesión del usuario. ' \
-           'Después de borrar el token, si vuelve a <a href="/test">probar la API Request</a>, ' \
-           'debe volver al flujo e autenticación.</td></tr></table>'
+           'Después de borrar el token, si vuelve a <a href="/test">Probar el API Request</a>, ' \
+           'debe volver al flujo de autenticación.</td></tr></table>'
 
 
 if __name__ == '__main__':
-    # Cuando se ejecuta localmente, desactive la verificación HTTPs de OAuthlib.
-    # Nota: Cuando se ejecute en producción NO deje esta opción habilitada.
+    # En un ambiente local desactive la verificación HTTPs de OAuthlib.
+    # Importante! En un ambiente de producción NO deje esta opción habilitada.
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-    # Especifica un nombre de host y un puerto que están configurados como un URI de redireccccionamiento
+    # Especifica nombre de host y puerto. Están configurados como un URI de redireccionamiento
     # válido para su proyecto API en la consola de Google API.
     app.run('localhost', 8080, debug=True)

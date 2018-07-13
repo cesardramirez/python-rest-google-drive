@@ -1,0 +1,20 @@
+* 7d1675e feat(upload-file): Subir archivo a Google Drive con un folder_id.
+* ce3b75a feat(upload-file-local): Subir un archivo por rest localmente.
+* fdb0373 bugfix(uri): Modificar el file_id por param para generar las uri.
+* 1020036 feat(get-file): Obtener un archivo segun su id.
+* a7f4134 refactor(url): Para el redireccionamiento, se guarda en la sesion de flask la funcion de origen.
+* 196d302 feat(get-files): Obtiene los files de google drive con unos parametros definidos.
+* ed9dda3 feat(add-uri): Añadir uri a cada file del json.
+* beec703 feat(example): Crear un json estatico para definir los métodos principales a trabajar.
+* 9f9741d feat(wb-flask): Web Service inicial que muestra el flujo del token y muestra en json el listado de archivos.
+* 2b40ef4 style(commands): Colocar la ejecución inicial.
+* e4250ce feat(insertFileFolder-searchFile): Subir un archivo a una carpeta específica y buscar un archivo según su nombre.
+* dbab2e4 feat(createFolder): Creación de una carpeta.
+* 7d29d97 feat(downloadFile): Archivo descargado.
+* ed8eada feat(uploadFile): Archivo cargado.
+* 2d4ed47 style(auth): Manejar la autenticacion en clases.
+* 5798fe2 feat(func): Manejar la autenticacion en funciones.
+* 18799fc Ejecutar ejemplo.
+* 835f998 Lista de Comandos.
+* 65380da Iniciando el proyecto.
+* 295063c Initial commit
