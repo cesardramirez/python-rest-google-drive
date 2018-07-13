@@ -80,11 +80,23 @@ def test_api_request():
 
 @app.route('/api/v1/filesExample', methods=['GET'])
 def get_files():
-    return flask.jsonify({'files': files_example})
+    #return flask.jsonify({'files': files_example})
+    return flask.jsonify({'files': [make_public_file(file) for file in files_example]})
+
+
+def make_public_file(file):
+    new_file = {}
+    for field in file:
+        if field == 'id':
+            new_file['uri'] = flask.url_for('get_file', file_id=file['id'], _external=True)
+        else:
+            new_file[field] = file[field]
+
+    return new_file
 
 
 @app.route('/api/v1/filesExample/<string:file_id>', methods=['GET'])
-def get_files_id(file_id):
+def get_file(file_id):
     file = [file for file in files_example if file['id'] == file_id]
     if len(file) == 0:
         flask.abort(404)
