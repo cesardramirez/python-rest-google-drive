@@ -70,6 +70,7 @@ def test_api_request():
     # Es como si realizara una peticion get con la url 'https://www.googleapis.com/drive/v3/files'
     # Crea una lista de los archivos de Google Drive del usuario autenticado.
     files = drive.files().list().execute()
+    #files = drive.files().list(pageSize=50, fields='files(id,mimeType,name,parents,webViewLink)').execute()
 
     # Guarda las credenciales nuevamente en sesión en caso de que el token de acceso se haya actualizado.
     # Nota: En una app de producción, es probable que desee guardar estas credenciales en una base de datos persistente.
@@ -79,7 +80,7 @@ def test_api_request():
 
 
 @app.route('/api/v1/filesExample', methods=['GET'])
-def get_files():
+def get_files_example():
     #return flask.jsonify({'files': files_example})
     return flask.jsonify({'files': [make_public_file(file) for file in files_example]})
 
@@ -122,6 +123,30 @@ def create_file():
 
     return flask.jsonify({'file': file}), 201
 
+"""
+Métodos HTTP Finales
+"""
+
+
+@app.route('/api/v1/files')
+def get_files():
+    if 'credentials' not in flask.session:
+        return flask.redirect('authorize')
+
+    # Carga credenciales de la sesión
+    credentials = creden.Credentials(**flask.session['credentials'])
+    drive = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
+
+    # Realiza una petición get con la url 'https://www.googleapis.com/drive/v3/files'
+    # Crea una lista de los archivos de Google Drive del usuario autenticado y con campos específicos.
+    files = drive.files().list(fields='files(id,mimeType,name,parents,webViewLink)').execute()
+
+    # Guarda las credenciales nuevamente en sesión en caso de que el token de acceso se haya actualizado.
+    # Nota: En una app de producción, es probable que desee guardar estas credenciales en una base de datos persistente.
+    flask.session['credentials'] = credentials_to_dict(credentials)
+
+    return flask.jsonify(**files)  # Pasa una lista de diccionarios a json.
+
 
 @app.route('/authorize')
 def authorize():
@@ -161,7 +186,7 @@ def oauth2callback():
     credentials = flow.credentials
     flask.session['credentials'] = credentials_to_dict(credentials)
 
-    return flask.redirect(flask.url_for('test_api_request'))
+    return flask.redirect(flask.url_for('get_files'))
 
 
 @app.route('/revoke')
