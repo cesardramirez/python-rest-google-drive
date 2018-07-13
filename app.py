@@ -21,8 +21,36 @@ API_VERSION = 'v3'
 app = flask.Flask(__name__)
 # Nota: Se incluye una clave secreta en el ejemplo para que funcione.
 # Si usa este código en su aplicación, reemplace esto con una clave secreta verdadera.
-#app.secret_key = os.urandom(24)
-app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
+app.secret_key = os.urandom(24)
+#app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
+
+files_example = [
+    {
+        "id": "17JPnSpp1GO6ayH0hksczT06ZjK5O0GsA",
+        "name": "Example.png",
+        "mimeType": "image/png"
+    },
+    {
+        "id": "10pc3yVHcVQrIaaGHdtwRFAkqhwNkjYPk",
+        "name": "Google",
+        "mimeType": "application/vnd.google-apps.folder"
+    },
+    {
+        "id": "1RcPaWJvF_Y0LewqTz7vmRI9a0Sj-O2Xh",
+        "name": "unnamed.jpg",
+        "mimeType": "image/jpeg"
+    },
+    {
+        "id": "1QlESUIuL89vOcLb05a6Eyaxk3rZr71DF",
+        "name": "Example.pdf",
+        "mimeType": "application/pdf"
+    },
+    {
+        "id": "1VVO8FclAkJxQi9SB0w_rtJwpBQAa8FkG",
+        "name": "Example.docx",
+        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }
+]
 
 
 @app.route('/')
@@ -47,7 +75,40 @@ def test_api_request():
     # Nota: En una app de producción, es probable que desee guardar estas credenciales en una base de datos persistente.
     flask.session['credentials'] = credentials_to_dict(credentials)
 
-    return flask.jsonify(**files)  # Revisar con debug... pasa una lista a formato json.
+    return flask.jsonify(**files)  # Pasa una lista de diccionarios a json.
+
+
+@app.route('/api/v1/filesExample', methods=['GET'])
+def get_files():
+    return flask.jsonify({'files': files_example})
+
+
+@app.route('/api/v1/filesExample/<string:file_id>', methods=['GET'])
+def get_files_id(file_id):
+    file = [file for file in files_example if file['id'] == file_id]
+    if len(file) == 0:
+        flask.abort(404)
+    return flask.jsonify({'file': file[0]})
+
+
+@app.errorhandler(404)
+def not_found(error):
+    return flask.make_response(flask.jsonify({'error': 'Not found'}), 404)
+
+
+@app.route('/api/v1/filesExample', methods=['POST'])
+def create_file():
+    if not flask.request.json or not 'filename' or not 'mimetype' in flask.request.json:
+        flask.abort(404)
+
+    file = {
+        'id': 'code_file_' + str(1),
+        'name': flask.request.json['filename'],
+        'mimetype': flask.request.json.get('mimetype')
+    }
+    files_example.append(file)
+
+    return flask.jsonify({'file': file}), 201
 
 
 @app.route('/authorize')
