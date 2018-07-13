@@ -4,6 +4,7 @@ import os
 import flask
 import requests
 from googleapiclient import errors
+from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
@@ -206,10 +207,42 @@ def upload_file():
     if flask.request.method == 'POST':
         if 'file' not in flask.request.files:
             flask.abort(400)
+
         file = flask.request.files['file']
+        folder_id = flask.request.form['folder_id']
+        file_name = file.filename
+        mime_type = file.mimetype
+        file_path = UPLOAD_FOLDER + file_name
+
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+            # Almacenar en google drive en una carpeta específica.
+            flask.session['original_method'] = 'upload_file'
+            flask.session['param'] = None
+            if 'credentials' not in flask.session:
+                return flask.redirect('authorize')
+
+            credentials = creden.Credentials(**flask.session['credentials'])
+            drive = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
+            file_metadata = {
+                'name': file_name,
+                'parents': [folder_id]
+            }
+            media = MediaFileUpload(file_path, mimetype=mime_type, resumable=True)
+
+            file = None
+            try:
+                file = drive.files().create(body=file_metadata,
+                                            media_body=media,
+                                            fields='id').execute()
+            except errors.HttpError as error:
+                print('ERROR: %s' % error)
+                flask.abort(404)
+
+            flask.session['credentials'] = credentials_to_dict(credentials)
+            print('ID Archivo %s colocado en ID Folder %s' % (file.get('id'), folder_id))
             return flask.redirect(flask.url_for('uploaded_file', filename=filename))
         else:
             return flask.make_response(flask.jsonify({'error': 'File Extension not Allowed'}), 400)
@@ -265,7 +298,6 @@ def oauth2callback():
         return flask.redirect(flask.url_for(original_method))
     else:
         return flask.redirect(flask.url_for(original_method, param=param))
-
 
 
 @app.route('/revoke')
